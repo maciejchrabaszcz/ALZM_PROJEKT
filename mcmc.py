@@ -65,6 +65,7 @@ def initiate_with_good_dict(
     num_previous_chars: int = 1,
 ):
     best_score = -np.Inf
+    best_dict = None
     for _ in range(num_tries):
         current_crypt_keys = create_rand_crypt(known_chars=known_chars)
         current_dict = str_to_key(known_chars, current_crypt_keys)
@@ -101,11 +102,11 @@ def decrypt_MCMC(
     real_text=None,
     num_previous_chars: int = 1,
     num_tries_to_initiate_dict=1,
+    num_keys_to_shuffle: int = 2,
 ):
     best_score = []
     best_text = []
     hamming_losses = []
-    scores = []
     # Krok 1 - Utworzenie początkowego klucza deszyfrującego
     if num_tries_to_initiate_dict > 1:
         current_dict = initiate_with_good_dict(
@@ -122,11 +123,10 @@ def decrypt_MCMC(
     current_score = score_likelihood(
         current_decrypted, perc_dict, num_previous_chars
     )
-    scores.append(current_score)
 
     for i in tqdm(range(iters), leave=False):
-        # Krok 4 - Losowa zmiana szyfru w dwóch znakach
-        proposed_dict = shuffle_pair(current_dict)
+        # Krok 4 - Losowa zmiana szyfru
+        proposed_dict = shuffle_keys(current_dict, num_keys_to_shuffle)
         # Krok 5 - Odszyfrowanie z nowym kluczem
         proposed_decrypted = apply_dict(cyphered_text, proposed_dict)
         # Krok 6 - Obliczenie log wiarogodności
@@ -135,8 +135,9 @@ def decrypt_MCMC(
         )
         # Krok 7 - Sprawdź nowy klucz licząc różnice w log wiarogodnościach
         # Jeżeli klucz lepszy to zaakcpetuj go
-        # Jeżeli nie to wylosuj
-        # Otherwise, reject the new key
+        # W przeciwnym wypadku jeżeli score jest większy niż 
+        # wylosowana liczba z przedziału [0,1] to zaakceptuj klucz
+        # w przeciwnym wypadku odrzuć
         if eval_proposal(proposed_score, current_score):
             current_dict = proposed_dict
             current_score = proposed_score
@@ -145,7 +146,6 @@ def decrypt_MCMC(
         if i % eval_every == 0:
             best_score.append(current_score)
             best_text.append(current_decrypted)
-            scores.append(current_score)
             if real_text:
                 hamming_losses.append(
                     hamming(list(real_text), list(current_decrypted))
@@ -161,4 +161,4 @@ def decrypt_MCMC(
                 + current_decrypted[0:70]
             )
 
-    return current_dict, best_score, best_text, hamming_losses, scores
+    return current_dict, best_score, best_text, hamming_losses

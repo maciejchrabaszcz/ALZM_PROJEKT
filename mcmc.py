@@ -75,8 +75,9 @@ def initiate_with_good_dict(
         current_score = score_likelihood(
             current_decrypted, perc_dict, num_previous_chars
         )
-        if best_score > current_score:
+        if best_score < current_score:
             best_dict = current_dict
+            best_score = current_score
     return best_dict
 
 
@@ -116,7 +117,8 @@ def decrypt_MCMC(
             num_tries_to_initiate_dict,
             num_previous_chars,
         )
-    current_dict = str_to_key(known_chars, crypt_keys)
+    else:
+        current_dict = str_to_key(known_chars, crypt_keys)
     # Krok 2 - Odszyfrowanie tekstu
     current_decrypted = apply_dict(cyphered_text, current_dict)
     # Krok 3 - Ocena przy użyciu log wiarogodności na podstawie częstości

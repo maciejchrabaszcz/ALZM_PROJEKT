@@ -2,8 +2,10 @@ from tqdm import tqdm
 import numpy as np
 import re
 import random
-from nltk import bigrams
+from nltk import ngrams
 from collections import Counter
+from typing import Dict
+from itertools import product
 
 
 def remove_unknown_symbols(known_symbols, text):
@@ -11,32 +13,37 @@ def remove_unknown_symbols(known_symbols, text):
     return re.sub(pattern, "", text)
 
 
-def create_empty_dict(known_chars):
-    empty_dict = {}
-    for i in known_chars:
+def create_empty_dict(known_chars, num_previous_chars: int = 1):
+    empty_dict: Dict[str, Dict[str, int]] = {}
+    for prev_chars in product(
+        known_chars, repeat=num_previous_chars
+    ):
         for j in known_chars:
-            empty_dict.setdefault(i, {})[j] = 0
+            empty_dict.setdefault("".join(prev_chars), {})[j] = 0
     return empty_dict
 
 
-def create_count_dict(text, known_chars):
-    count_dict = create_empty_dict(known_chars)
-    counted = dict(Counter(bigrams(text)))
+def create_count_dict(text, known_chars, num_previous_chars: int = 1):
+    count_dict = create_empty_dict(known_chars, num_previous_chars)
+    counted = dict(Counter(ngrams(text, num_previous_chars + 1)))
     for chars, count in tqdm(counted.items()):
-        char_a = chars[0]
-        char_b = chars[1]
-        if char_a in known_chars and char_b in known_chars:
-            count_dict[char_a][char_b] = count
+        prev_chars = "".join(chars[:-1])
+        next_char = chars[-1]
+        # if char_a in known_chars and char_b in known_chars:
+        count_dict.setdefault(prev_chars, {})[next_char] = count
     return count_dict
 
 
-def create_perc_dict(count_dict, known_chars):
-    perc_dict = create_empty_dict(known_chars)
-    for i in known_chars:
-        total_count = sum(count_dict[i].values())
-        for j in known_chars:
-            letter_perc = (count_dict[i][j] + 1) / total_count
-            perc_dict[i][j] = np.log(letter_perc)
+def create_perc_dict(count_dict, known_chars, num_previous_chars: int = 1):
+    perc_dict = create_empty_dict(known_chars, num_previous_chars)
+    for prev_chars, counts_dict in count_dict.items():
+        total_count = sum(counts_dict.values())
+        for char in known_chars:
+            if total_count > 0:
+                letter_perc = (counts_dict.get(char, 0) + 1) / total_count
+            else:
+                letter_perc = 1e-24
+            perc_dict[prev_chars][char] = np.log(letter_perc)
     return perc_dict
 
 

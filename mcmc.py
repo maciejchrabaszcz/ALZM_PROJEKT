@@ -32,7 +32,8 @@ def score_likelihood(decrypted_text, perc_dict, num_previous_chars: int = 1):
     total_likelihood = 0
     counted = dict(Counter(ngrams(decrypted_text, num_previous_chars + 1)))
     for chars, count in counted.items():
-        pair_likelihood = count * perc_dict[chars[0]][chars[1]]
+        prev_chars = ''.join(chars[:-1])
+        pair_likelihood = count * perc_dict[prev_chars][chars[-1]]
         total_likelihood += pair_likelihood
     return total_likelihood
 
